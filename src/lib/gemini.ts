@@ -7,8 +7,11 @@ if (!apiKey) {
 
 const genAI = new GoogleGenerativeAI(apiKey);
 
-const EMBEDDING_MODEL = process.env.GEMINI_EMBEDDING_MODEL ?? "text-embedding-004";
-const CHAT_MODEL = process.env.GEMINI_CHAT_MODEL ?? "gemini-2.0-flash";
+const EMBEDDING_MODEL = process.env.GEMINI_EMBEDDING_MODEL ?? "gemini-embedding-001";
+const CHAT_MODEL = process.env.GEMINI_CHAT_MODEL ?? "gemini-flash-latest";
+// Doit rester en phase avec `vector(N)` dans db/schema.sql. gemini-embedding-001 produit
+// 3072 dimensions par defaut ; on les tronque via outputDimensionality pour rester compact.
+const EMBEDDING_DIMENSIONS = Number(process.env.EMBEDDING_DIMENSIONS ?? 768);
 
 /**
  * Vectorise un texte pour la recherche/indexation RAG.
@@ -23,7 +26,8 @@ export async function embedText(
   const result = await model.embedContent({
     content: { role: "user", parts: [{ text }] },
     taskType: taskType as never,
-  });
+    outputDimensionality: EMBEDDING_DIMENSIONS,
+  } as never);
   return result.embedding.values;
 }
 
@@ -43,7 +47,8 @@ export async function embedTexts(
         model: EMBEDDING_MODEL,
         content: { role: "user", parts: [{ text }] },
         taskType: taskType as never,
-      })),
+        outputDimensionality: EMBEDDING_DIMENSIONS,
+      })) as never,
     });
     out.push(...result.embeddings.map((e) => e.values));
   }
