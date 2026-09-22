@@ -100,3 +100,22 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 CREATE INDEX IF NOT EXISTS messages_conversation_idx ON messages (conversation_id);
+
+-- Canal Telegram : les utilisateurs y discutent sans compte SaaS (pas d'organisation),
+-- donc on garde un historique separe plutot que de forcer un organization_id/user_id factice.
+CREATE TABLE IF NOT EXISTS telegram_conversations (
+  chat_id BIGINT PRIMARY KEY,
+  domain_id UUID NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS telegram_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  chat_id BIGINT NOT NULL REFERENCES telegram_conversations(chat_id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+  content TEXT NOT NULL,
+  sources JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS telegram_messages_chat_idx ON telegram_messages (chat_id);

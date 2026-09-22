@@ -10,7 +10,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "db:migrate": "tsx scripts/migrate.ts",
-    "ingest": "tsx scripts/ingest.ts"
+    "ingest": "tsx scripts/ingest.ts",
+    "telegram:set-webhook": "tsx scripts/set-telegram-webhook.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

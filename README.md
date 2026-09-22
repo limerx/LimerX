@@ -85,6 +85,27 @@ npm run dev
 Aller sur http://localhost:3000, creer un compte (une organisation est creee automatiquement),
 puis ouvrir le domaine `NF C15-100` depuis le dashboard.
 
+### 6. Brancher le bot Telegram (optionnel)
+
+Le meme moteur RAG est accessible via un bot Telegram, independamment du compte web (pas de
+notion d'organisation ni de connexion — historique garde par `chat_id` Telegram).
+
+1. Creer un bot avec [@BotFather](https://t.me/BotFather), recuperer le token
+2. Renseigner dans `.env.local` : `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_ID` (optionnel, pour
+   les notifications d'erreur), `TELEGRAM_WEBHOOK_SECRET` (chaine aleatoire, ex:
+   `openssl rand -hex 16`), `TELEGRAM_DEFAULT_DOMAIN` (slug du domaine servi par le bot)
+3. Deployer l'app sur une URL HTTPS publique, puis renseigner `TELEGRAM_WEBHOOK_URL` (ex:
+   `https://mon-app.vercel.app/api/telegram/webhook`)
+4. Enregistrer le webhook aupres de Telegram :
+   ```bash
+   npm run telegram:set-webhook
+   ```
+
+Le webhook (`src/app/api/telegram/webhook/route.ts`) verifie que chaque requete porte le bon
+header `X-Telegram-Bot-Api-Secret-Token` avant de traiter le message — indispensable car l'URL du
+webhook est publique. En local, un tunnel (ngrok, Cloudflare Tunnel...) est necessaire pour tester
+avant deploiement, Telegram n'acceptant que des URL HTTPS publiques.
+
 ## Points d'attention pour la mise en production / vente SaaS
 
 - **Fiabilite des reponses** : le prompt systeme (`src/lib/gemini.ts`) force le modele a ne
