@@ -5,7 +5,7 @@
  * Usage: npm run telegram:set-webhook
  * (lit TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_URL, TELEGRAM_WEBHOOK_SECRET depuis .env.local)
  */
-import "dotenv/config";
+import "./load-env";
 import { setTelegramWebhook } from "../src/lib/telegram";
 
 async function main() {

@@ -9,7 +9,7 @@
  * (motif "411.3.3", "701.1.2", ...) pour que le chatbot puisse citer ses sources
  * precisement. Si le PDF a une structure differente, ajuster ARTICLE_REGEX ci-dessous.
  */
-import "dotenv/config";
+import "./load-env";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 // @ts-expect-error - pdf-parse n'a pas de types ESM propres pour cet import direct

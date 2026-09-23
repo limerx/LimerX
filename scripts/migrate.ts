@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./load-env";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Client } from "pg";
@@ -6,7 +6,7 @@ import { Client } from "pg";
 async function main() {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
-    throw new Error("DATABASE_URL manquant dans l'environnement (.env).");
+    throw new Error("DATABASE_URL manquant dans l'environnement (.env.local ou .env).");
   }
 
   const client = new Client({ connectionString: databaseUrl });
