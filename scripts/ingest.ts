@@ -162,35 +162,46 @@ async function main() {
       throw new Error("Aucun texte exploitable extrait du PDF (PDF scanne sans OCR ?).");
     }
 
-    const docResult = await client.query<{ id: string }>(
-      `INSERT INTO documents (domain_id, filename, title, version_label, page_count, checksum)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [domainId, file.split("/").pop(), title, version, pages.length, checksum]
-    );
-    const documentId = docResult.rows[0].id;
-
-    console.log("Calcul des embeddings (Gemini)... cela peut prendre plusieurs minutes.");
-    const EMBED_BATCH = 50;
-    for (let i = 0; i < chunks.length; i += EMBED_BATCH) {
-      const batch = chunks.slice(i, i + EMBED_BATCH);
-      const embeddings = await embedTexts(
-        batch.map((c) => c.content),
-        "RETRIEVAL_DOCUMENT"
+    // Transaction : si le calcul des embeddings echoue en cours de route (cle API
+    // invalide, quota, coupure reseau...), on ne doit garder ni le document ni les
+    // chunks partiels - sinon le checksum bloque toute re-tentative sur un document
+    // "fantome" sans aucun contenu exploitable.
+    await client.query("BEGIN");
+    try {
+      const docResult = await client.query<{ id: string }>(
+        `INSERT INTO documents (domain_id, filename, title, version_label, page_count, checksum)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+        [domainId, file.split("/").pop(), title, version, pages.length, checksum]
       );
+      const documentId = docResult.rows[0].id;
 
-      for (let j = 0; j < batch.length; j++) {
-        const chunk = batch[j];
-        const vectorLiteral = `[${embeddings[j].join(",")}]`;
-        await client.query(
-          `INSERT INTO chunks (document_id, domain_id, content, article_ref, page_number, chunk_index, embedding)
-           VALUES ($1, $2, $3, $4, $5, $6, $7::vector)`,
-          [documentId, domainId, chunk.content, chunk.articleRef, chunk.pageNumber, i + j, vectorLiteral]
+      console.log("Calcul des embeddings (Gemini)... cela peut prendre plusieurs minutes.");
+      const EMBED_BATCH = 50;
+      for (let i = 0; i < chunks.length; i += EMBED_BATCH) {
+        const batch = chunks.slice(i, i + EMBED_BATCH);
+        const embeddings = await embedTexts(
+          batch.map((c) => c.content),
+          "RETRIEVAL_DOCUMENT"
         );
-      }
-      console.log(`  ${Math.min(i + EMBED_BATCH, chunks.length)}/${chunks.length} chunks indexes`);
-    }
 
-    console.log(`Ingestion terminee : document ${documentId} (${chunks.length} chunks) dans le domaine '${domain}'.`);
+        for (let j = 0; j < batch.length; j++) {
+          const chunk = batch[j];
+          const vectorLiteral = `[${embeddings[j].join(",")}]`;
+          await client.query(
+            `INSERT INTO chunks (document_id, domain_id, content, article_ref, page_number, chunk_index, embedding)
+             VALUES ($1, $2, $3, $4, $5, $6, $7::vector)`,
+            [documentId, domainId, chunk.content, chunk.articleRef, chunk.pageNumber, i + j, vectorLiteral]
+          );
+        }
+        console.log(`  ${Math.min(i + EMBED_BATCH, chunks.length)}/${chunks.length} chunks indexes`);
+      }
+
+      await client.query("COMMIT");
+      console.log(`Ingestion terminee : document ${documentId} (${chunks.length} chunks) dans le domaine '${domain}'.`);
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    }
   } finally {
     await client.end();
   }
