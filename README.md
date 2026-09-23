@@ -71,16 +71,20 @@ npm run ingest -- --file=./data/sources/nf-c15-100.pdf --domain=nf-c15-100 \
 Le script :
 1. Extrait le texte page par page, et rend chaque page en image PNG dans
    `public/norm-pages/<domaine>/<page>.png` (schemas/tableaux non restituables en texte seul —
-   voir la question posee au chat/a Telegram, qui renvoie une vignette vers la page d'origine).
-   Le bas de chaque page est rogne (pied de page, bandeau publicitaire eventuel du document
-   source) via `--crop-bottom=0.08` (8% par defaut) — ajuster cette valeur et re-ingerer si ca
-   coupe du contenu utile ou ne retire pas assez
-2. Tente de detecter les references d'article (motif `411.3.3`, `701.1.2`, ...) pour le decoupage
+   voir la question posee au chat/a Telegram, qui renvoie une vignette vers la page d'origine)
+2. Detecte les blocs de texte publicitaires/commerciaux (motifs `DEFAULT_REDACT_MARKERS` dans
+   `scripts/ingest.ts`, ex: "XXX recommande", liens flipbook produit) et les **efface de l'image**
+   (bande blanche a l'endroit exact du bloc, ou qu'il soit sur la page) et **exclut du texte
+   indexe** (pas de pollution marketing dans les reponses du chatbot). Etendre la liste via
+   `--redact=motif1,motif2` (regex, insensible a la casse) si d'autres pages en revelent
+   d'autres. Complete par un rognage modeste du tout dernier bas de page (`--crop-bottom=0.04`
+   par defaut, numero de page/mention legale) — ajuster si necessaire
+3. Tente de detecter les references d'article (motif `411.3.3`, `701.1.2`, ...) pour le decoupage
    en chunks — **a ajuster** (`ARTICLE_REGEX` dans `scripts/ingest.ts`) si la structure reelle du
    PDF differe une fois teste. Ces references servent uniquement au decoupage interne : le
    chatbot ne les cite plus dans ses reponses (voir plus bas)
-3. Decoupe en chunks (~1100 caracteres, chevauchement de 150) et calcule les embeddings Gemini
-4. Insere le tout en base, idempotent par checksum du fichier (un meme PDF ne sera pas re-ingere)
+4. Decoupe en chunks (~1100 caracteres, chevauchement de 150) et calcule les embeddings Gemini
+5. Insere le tout en base, idempotent par checksum du fichier (un meme PDF ne sera pas re-ingere)
 
 Les images generees ne sont pas committees (issues d'un PDF souvent proprietaire, potentiellement
 volumineuses) — a regenerer localement via `npm run ingest` sur chaque environnement.

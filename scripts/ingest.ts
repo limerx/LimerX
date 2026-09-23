@@ -37,6 +37,13 @@ const ARTICLE_REGEX = /(?:^|\n)\s*(\d{2,3}(?:\.\d{1,3}){1,4})\b/g;
 const CHUNK_SIZE = 1100;
 const CHUNK_OVERLAP = 150;
 const PAGE_IMAGE_SCALE = 2;
+const REDACT_PADDING_PX = 22;
+
+// Marqueurs textuels des encadres publicitaires/commerciaux a effacer des images de page
+// (motif observe dans ce guide fabricant : encadres "XXX recommande", liens vers un
+// flipbook produit). Etendre via --redact=motif1,motif2 si d'autres motifs apparaissent
+// sur d'autres pages une fois testees.
+const DEFAULT_REDACT_MARKERS = [/\bschneider\s*electric\s*recommande\b/i, /flipbook\.se\.com/i];
 
 function parseArgs() {
   const args = new Map<string, string>();
@@ -48,28 +55,43 @@ function parseArgs() {
   const domain = args.get("domain");
   if (!file || !domain) {
     console.error(
-      "Usage: npm run ingest -- --file=<chemin.pdf> --domain=<slug> [--title=\"...\"] [--version=\"...\"] [--crop-bottom=0.08]"
+      "Usage: npm run ingest -- --file=<chemin.pdf> --domain=<slug> [--title=\"...\"] [--version=\"...\"] " +
+        "[--crop-bottom=0.04] [--redact=motif1,motif2]"
     );
     process.exit(1);
   }
   const cropBottomArg = args.get("crop-bottom");
-  const cropBottom = cropBottomArg !== undefined ? Number(cropBottomArg) : 0.08;
+  const cropBottom = cropBottomArg !== undefined ? Number(cropBottomArg) : 0.04;
   if (Number.isNaN(cropBottom) || cropBottom < 0 || cropBottom >= 1) {
-    throw new Error("--crop-bottom doit etre un nombre entre 0 et 1 (ex: 0.08 pour 8%).");
+    throw new Error("--crop-bottom doit etre un nombre entre 0 et 1 (ex: 0.04 pour 4%).");
   }
+  const extraRedactArg = args.get("redact");
+  const redactMarkers = [
+    ...DEFAULT_REDACT_MARKERS,
+    ...(extraRedactArg ? extraRedactArg.split(",").map((m) => new RegExp(m.trim(), "i")) : []),
+  ];
   return {
     file,
     domain,
     title: args.get("title") ?? null,
     version: args.get("version") ?? null,
     cropBottom,
+    redactMarkers,
   };
+}
+
+interface PdfTextItem {
+  str?: string;
+  transform?: number[];
+  width?: number;
+  height?: number;
 }
 
 async function extractPagesAndRenderImages(
   buffer: Buffer,
   imageOutDir: string,
-  cropBottomRatio: number
+  cropBottomRatio: number,
+  redactMarkers: RegExp[]
 ): Promise<PageText[]> {
   const pdfjsDistRoot = join(process.cwd(), "node_modules", "pdfjs-dist");
   const doc = await pdfjsLib.getDocument({
@@ -85,25 +107,59 @@ async function extractPagesAndRenderImages(
   const pages: PageText[] = [];
   for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber++) {
     const page = await doc.getPage(pageNumber);
-
-    const textContent = await page.getTextContent();
-    const text = textContent.items
-      .map((item: unknown) => (item as { str?: string }).str ?? "")
-      .join(" ");
-    pages.push({ pageNumber, text });
-
     const viewport = page.getViewport({ scale: PAGE_IMAGE_SCALE });
     const fullWidth = Math.ceil(viewport.width);
     const fullHeight = Math.ceil(viewport.height);
+
+    const textContent = await page.getTextContent();
+    const items = textContent.items as PdfTextItem[];
+
+    // Les items dont le texte matche un marqueur publicitaire/commercial sont exclus du
+    // texte indexe (pour ne pas polluer les reponses du chatbot avec du contenu marketing)
+    // ET localises pour etre effaces de l'image de page rendue plus bas.
+    const keptStrings: string[] = [];
+    const redactionBandsPx: { top: number; bottom: number }[] = [];
+
+    for (const item of items) {
+      const str = item.str ?? "";
+      const isAd = redactMarkers.some((re) => re.test(str));
+      if (isAd) {
+        if (item.transform && item.transform.length >= 6) {
+          const x0 = item.transform[4];
+          const y0 = item.transform[5];
+          const w = item.width ?? 10;
+          const h = item.height ?? 10;
+          const p1 = viewport.convertToViewportPoint(x0, y0 + h);
+          const p2 = viewport.convertToViewportPoint(x0 + w, y0);
+          const top = Math.min(p1[1], p2[1]) - REDACT_PADDING_PX;
+          const bottom = Math.max(p1[1], p2[1]) + REDACT_PADDING_PX;
+          redactionBandsPx.push({ top, bottom });
+        }
+      } else {
+        keptStrings.push(str);
+      }
+    }
+    pages.push({ pageNumber, text: keptStrings.join(" ") });
+
     const canvas = createCanvas(fullWidth, fullHeight);
     const ctx = canvas.getContext("2d");
     // @napi-rs/canvas n'implemente pas exactement les types DOM Canvas/CanvasRenderingContext2D
     // que pdfjs-dist attend - sans consequence a l'execution (rendu valide, teste manuellement).
     await page.render({ canvasContext: ctx, canvas, viewport } as never).promise;
 
-    // Rogne le bas de la page (pied de page / bandeau publicitaire eventuel du document
-    // source). Pourcentage uniforme applique a toutes les pages - ajuster CROP_BOTTOM_RATIO
-    // (ou --crop-bottom=0.xx) et re-ingerer si ca coupe du contenu ou n'enleve pas assez.
+    // Efface (bande blanche pleine largeur) chaque zone publicitaire detectee, ou qu'elle
+    // soit sur la page - pas seulement en bas (encadres "XXX recommande" au milieu de page,
+    // bandeaux produits en pied de page, etc.)
+    ctx.fillStyle = "white";
+    for (const band of redactionBandsPx) {
+      const top = Math.max(0, band.top);
+      const bottom = Math.min(fullHeight, band.bottom);
+      if (bottom > top) ctx.fillRect(0, top, fullWidth, bottom - top);
+    }
+
+    // Rogne en plus le tout dernier bas de page (numero de page / mention legale du document
+    // source) : pourcentage modeste, la detection par marqueurs ci-dessus fait le plus gros du
+    // travail. Ajuster --crop-bottom si necessaire.
     const croppedHeight = Math.max(1, Math.round(fullHeight * (1 - cropBottomRatio)));
     const finalCanvas = createCanvas(fullWidth, croppedHeight);
     finalCanvas.getContext("2d").drawImage(canvas, 0, 0);
@@ -156,7 +212,7 @@ function chunkPage(page: PageText): Chunk[] {
 }
 
 async function main() {
-  const { file, domain, title, version, cropBottom } = parseArgs();
+  const { file, domain, title, version, cropBottom, redactMarkers } = parseArgs();
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) throw new Error("DATABASE_URL manquant dans l'environnement.");
 
@@ -195,7 +251,7 @@ async function main() {
     // si ce cas se presente (ranger par document_id demanderait de creer la ligne
     // `documents` avant l'extraction).
     const imageOutDir = join(process.cwd(), "public", "norm-pages", domain);
-    const pages = await extractPagesAndRenderImages(buffer, imageOutDir, cropBottom);
+    const pages = await extractPagesAndRenderImages(buffer, imageOutDir, cropBottom, redactMarkers);
     console.log(
       `${pages.length} pages extraites et rendues en image (${imageOutDir}, ${Math.round(cropBottom * 100)}% rogne en bas).`
     );
