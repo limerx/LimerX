@@ -39,11 +39,10 @@ const CHUNK_OVERLAP = 150;
 const PAGE_IMAGE_SCALE = 2;
 const REDACT_PADDING_PX = 22;
 
-// Marqueurs textuels des encadres publicitaires/commerciaux a effacer des images de page
-// (motif observe dans ce guide fabricant : encadres "XXX recommande", liens vers un
-// flipbook produit). Etendre via --redact=motif1,motif2 si d'autres motifs apparaissent
-// sur d'autres pages une fois testees.
-const DEFAULT_REDACT_MARKERS = [/\bschneider\s*electric\s*recommande\b/i, /flipbook\.se\.com/i];
+// Par defaut, les pages sont rendues telles quelles (authentiques, sans modification).
+// --crop-bottom et --redact restent disponibles pour un usage ponctuel si besoin, mais ne
+// s'appliquent plus par defaut.
+const DEFAULT_REDACT_MARKERS: RegExp[] = [];
 
 function parseArgs() {
   const args = new Map<string, string>();
@@ -56,12 +55,12 @@ function parseArgs() {
   if (!file || !domain) {
     console.error(
       "Usage: npm run ingest -- --file=<chemin.pdf> --domain=<slug> [--title=\"...\"] [--version=\"...\"] " +
-        "[--crop-bottom=0.04] [--redact=motif1,motif2]"
+        "[--crop-bottom=0.0] [--redact=motif1,motif2]"
     );
     process.exit(1);
   }
   const cropBottomArg = args.get("crop-bottom");
-  const cropBottom = cropBottomArg !== undefined ? Number(cropBottomArg) : 0.04;
+  const cropBottom = cropBottomArg !== undefined ? Number(cropBottomArg) : 0;
   if (Number.isNaN(cropBottom) || cropBottom < 0 || cropBottom >= 1) {
     throw new Error("--crop-bottom doit etre un nombre entre 0 et 1 (ex: 0.04 pour 4%).");
   }
