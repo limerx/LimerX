@@ -23,6 +23,10 @@ CREATE TABLE IF NOT EXISTS organizations (
 -- deja migree : ce fichier n'est pas un outil de migration versionne, juste un schema
 -- applique de facon idempotente a chaque `npm run db:migrate`.
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS disclaimer_accepted_at TIMESTAMPTZ;
+-- Statut Stripe cache localement (source de verite = Stripe, synchronise via webhook) :
+-- null (jamais souscrit) | trialing | active | past_due | canceled | unpaid
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS subscription_status TEXT;
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT;
 
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -105,12 +109,26 @@ CREATE TABLE IF NOT EXISTS messages (
 
 CREATE INDEX IF NOT EXISTS messages_conversation_idx ON messages (conversation_id);
 
--- Canal Telegram : les utilisateurs y discutent sans compte SaaS (pas d'organisation),
--- donc on garde un historique separe plutot que de forcer un organization_id/user_id factice.
+-- Canal Telegram : les utilisateurs y discutent sans compte SaaS au depart (pas
+-- d'organization_id/user_id impose), donc historique separe des conversations web.
+-- organization_id est renseigne une fois le chat_id relie a un compte payant (voir
+-- telegram_link_codes) ; tant qu'il est null, l'acces est gate en fonction de is_public.
 CREATE TABLE IF NOT EXISTS telegram_conversations (
   chat_id BIGINT PRIMARY KEY,
   domain_id UUID NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+  organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE telegram_conversations ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL;
+
+-- Code court, usage unique, genere depuis le dashboard web pour relier un chat_id Telegram
+-- a l'organisation de l'utilisateur connecte (flow : /start <code> envoye au bot).
+CREATE TABLE IF NOT EXISTS telegram_link_codes (
+  code TEXT PRIMARY KEY,
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at TIMESTAMPTZ
 );
 
 CREATE TABLE IF NOT EXISTS telegram_messages (

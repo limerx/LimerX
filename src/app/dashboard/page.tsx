@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { BillingStatus } from "@/components/BillingStatus";
+import { TelegramLinkCard } from "@/components/TelegramLinkCard";
 
 interface DomainRow {
   slug: string;
@@ -25,12 +27,21 @@ export default async function DashboardPage() {
     [session.user.organizationId]
   );
 
+  const orgRows = await query<{ subscription_status: string | null }>(
+    "SELECT subscription_status FROM organizations WHERE id = $1",
+    [session.user.organizationId]
+  );
+  const subscriptionStatus = orgRows[0]?.subscription_status ?? null;
+
   return (
     <main className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <span className="text-lg font-semibold text-brand-700">LimerX</span>
-          <span className="text-sm text-slate-600">{session.user.email}</span>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-slate-600">{session.user.email}</span>
+            <BillingStatus status={subscriptionStatus} />
+          </div>
         </div>
       </header>
 
@@ -42,7 +53,8 @@ export default async function DashboardPage() {
 
         {domains.length === 0 ? (
           <p className="mt-8 rounded-md border border-dashed border-slate-300 p-6 text-slate-600">
-            Votre organisation n'a acces a aucun domaine pour le moment. Contactez l'administrateur.
+            Votre organisation n'a pas encore acces a un domaine payant. Demarrez votre essai
+            gratuit ci-dessus pour debloquer l'acces.
           </p>
         ) : (
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -58,6 +70,12 @@ export default async function DashboardPage() {
                 )}
               </Link>
             ))}
+          </div>
+        )}
+
+        {(subscriptionStatus === "trialing" || subscriptionStatus === "active") && (
+          <div className="mt-10">
+            <TelegramLinkCard />
           </div>
         )}
       </div>
