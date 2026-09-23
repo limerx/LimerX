@@ -12,7 +12,10 @@ export interface RetrievedChunk {
 const TOP_K = 6;
 // Distance cosine (pgvector) : 0 = identique, 2 = oppose. On ecarte les extraits
 // trop peu pertinents plutot que de forcer le modele a repondre hors-sujet.
-const MAX_DISTANCE = 0.6;
+// 0.6 etait trop permissif : un message comme "merci" retrouvait quand meme des chunks
+// (et donc des photos de page) sans rapport. A resserrer encore si ca persiste, ou
+// desserrer si de vraies questions se retrouvent sans aucune source.
+const MAX_DISTANCE = 0.35;
 
 export async function retrieveRelevantChunks(
   domainId: string,
