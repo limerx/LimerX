@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { retrieveRelevantChunks, toChatSources } from "@/lib/rag";
@@ -5,6 +7,7 @@ import { generateAnswer } from "@/lib/gemini";
 import {
   sendTelegramMessage,
   sendTelegramChatAction,
+  sendTelegramPhoto,
   type TelegramUpdate,
 } from "@/lib/telegram";
 
@@ -20,16 +23,25 @@ const WELCOME_MESSAGE =
   "Cette reponse est une aide a la comprehension de la norme, elle ne remplace pas " +
   "la validation d'un electricien qualifie ou d'un organisme de controle agree.";
 
-async function getOrCreateConversation(chatId: number): Promise<string | null> {
-  const existing = await query<{ domain_id: string }>(
-    "SELECT domain_id FROM telegram_conversations WHERE chat_id = $1",
+interface ConversationDomain {
+  domainId: string;
+  domainSlug: string;
+}
+
+async function getOrCreateConversation(chatId: number): Promise<ConversationDomain | null> {
+  const existing = await query<{ domain_id: string; slug: string }>(
+    `SELECT tc.domain_id, d.slug
+     FROM telegram_conversations tc
+     JOIN domains d ON d.id = tc.domain_id
+     WHERE tc.chat_id = $1`,
     [chatId]
   );
-  if (existing[0]) return existing[0].domain_id;
+  if (existing[0]) return { domainId: existing[0].domain_id, domainSlug: existing[0].slug };
 
-  const domainRows = await query<{ id: string }>("SELECT id FROM domains WHERE slug = $1", [
-    DEFAULT_DOMAIN_SLUG,
-  ]);
+  const domainRows = await query<{ id: string; slug: string }>(
+    "SELECT id, slug FROM domains WHERE slug = $1",
+    [DEFAULT_DOMAIN_SLUG]
+  );
   const domain = domainRows[0];
   if (!domain) return null;
 
@@ -37,7 +49,7 @@ async function getOrCreateConversation(chatId: number): Promise<string | null> {
     chatId,
     domain.id,
   ]);
-  return domain.id;
+  return { domainId: domain.id, domainSlug: domain.slug };
 }
 
 function formatReply(answer: string, sources: { articleRef: string | null; pageNumber: number | null }[]) {
@@ -80,14 +92,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    const domainId = await getOrCreateConversation(chatId);
-    if (!domainId) {
+    const conversation = await getOrCreateConversation(chatId);
+    if (!conversation) {
       await sendTelegramMessage(
         chatId,
         "Le service n'est pas encore configure (domaine par defaut introuvable). Contactez l'administrateur."
       );
       return NextResponse.json({ ok: true });
     }
+    const { domainId, domainSlug } = conversation;
 
     await sendTelegramChatAction(chatId, "typing");
 
@@ -117,6 +130,17 @@ export async function POST(req: NextRequest) {
     );
 
     await sendTelegramMessage(chatId, formatReply(answer, sources));
+
+    // Jusqu'a 2 pages uniques envoyees en photo (schemas/tableaux que le texte seul ne rend pas).
+    const uniquePages = Array.from(new Set(relevantChunks.map((c) => c.pageNumber).filter(Boolean)));
+    for (const pageNumber of uniquePages.slice(0, 2)) {
+      const imagePath = join(process.cwd(), "public", "norm-pages", domainSlug, `${pageNumber}.png`);
+      if (existsSync(imagePath)) {
+        await sendTelegramPhoto(chatId, imagePath, `Page ${pageNumber}`).catch((err) =>
+          console.error("sendTelegramPhoto error:", err)
+        );
+      }
+    }
   } catch (err) {
     console.error("Telegram webhook error:", err);
     await sendTelegramMessage(chatId, "Une erreur est survenue. Reessayez dans un instant.").catch(

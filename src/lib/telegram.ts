@@ -43,6 +43,25 @@ export async function sendTelegramMessage(chatId: number, text: string): Promise
   }
 }
 
+export async function sendTelegramPhoto(
+  chatId: number,
+  filePath: string,
+  caption?: string
+): Promise<void> {
+  if (!API_BASE) throw new Error("TELEGRAM_BOT_TOKEN manquant dans l'environnement.");
+
+  const { readFileSync } = await import("node:fs");
+  const form = new FormData();
+  form.append("chat_id", String(chatId));
+  if (caption) form.append("caption", caption);
+  form.append("photo", new Blob([readFileSync(filePath)]), filePath.split("/").pop() ?? "page.png");
+
+  const res = await fetch(`${API_BASE}/sendPhoto`, { method: "POST", body: form });
+  if (!res.ok) {
+    console.error("Telegram sendPhoto error:", res.status, await res.text());
+  }
+}
+
 export async function sendTelegramChatAction(chatId: number, action: "typing"): Promise<void> {
   if (!API_BASE) return;
   await fetch(`${API_BASE}/sendChatAction`, {

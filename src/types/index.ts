@@ -2,6 +2,7 @@ export interface ChatMessageSource {
   articleRef: string | null;
   pageNumber: number | null;
   excerpt: string;
+  pageImageUrl?: string | null;
 }
 
 export interface ChatMessageData {

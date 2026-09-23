@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { retrieveRelevantChunks, toChatSources } from "@/lib/rag";
+import { retrieveRelevantChunks, toChatSources, pageImageUrl } from "@/lib/rag";
 import { generateAnswerStream } from "@/lib/gemini";
 
 export const runtime = "nodejs";
@@ -98,6 +98,7 @@ export async function POST(req: NextRequest) {
               articleRef: c.articleRef,
               pageNumber: c.pageNumber,
               excerpt: c.content.slice(0, 240),
+              pageImageUrl: pageImageUrl(domainSlug, c.pageNumber),
             })),
           })
         )
@@ -128,6 +129,7 @@ export async function POST(req: NextRequest) {
               articleRef: c.articleRef,
               pageNumber: c.pageNumber,
               excerpt: c.content.slice(0, 240),
+              pageImageUrl: pageImageUrl(domainSlug, c.pageNumber),
             }))
           ),
         ]

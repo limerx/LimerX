@@ -69,12 +69,17 @@ npm run ingest -- --file=./data/sources/nf-c15-100.pdf --domain=nf-c15-100 \
 ```
 
 Le script :
-1. Extrait le texte page par page
+1. Extrait le texte page par page, et rend chaque page en image PNG dans
+   `public/norm-pages/<domaine>/<page>.png` (schemas/tableaux non restituables en texte seul —
+   voir la question posee au chat/a Telegram, qui renvoie une vignette vers la page d'origine)
 2. Tente de detecter les references d'article (motif `411.3.3`, `701.1.2`, ...) pour permettre au
    chatbot de citer precisement ses sources — **a ajuster** (`ARTICLE_REGEX` dans
    `scripts/ingest.ts`) si la structure reelle du PDF differe une fois teste
 3. Decoupe en chunks (~1100 caracteres, chevauchement de 150) et calcule les embeddings Gemini
 4. Insere le tout en base, idempotent par checksum du fichier (un meme PDF ne sera pas re-ingere)
+
+Les images generees ne sont pas committees (issues d'un PDF souvent proprietaire, potentiellement
+volumineuses) — a regenerer localement via `npm run ingest` sur chaque environnement.
 
 ### 5. Lancer l'application
 

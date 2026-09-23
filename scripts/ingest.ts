@@ -8,12 +8,17 @@
  * Le decoupage tente de detecter les references d'article de la norme
  * (motif "411.3.3", "701.1.2", ...) pour que le chatbot puisse citer ses sources
  * precisement. Si le PDF a une structure differente, ajuster ARTICLE_REGEX ci-dessous.
+ *
+ * Chaque page est aussi rendue en image (PNG) sous public/norm-pages/<domaine>/<page>.png,
+ * pour que le chat puisse renvoyer vers le schema/diagramme original (les normes techniques
+ * contiennent souvent des tableaux et diagrammes que le texte seul ne restitue pas).
  */
 import "./load-env";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-// @ts-expect-error - pdf-parse n'a pas de types ESM propres pour cet import direct
-import pdfParse from "pdf-parse/lib/pdf-parse.js";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { createCanvas } from "@napi-rs/canvas";
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import { Client } from "pg";
 import { embedTexts } from "../src/lib/gemini";
 
@@ -31,6 +36,7 @@ interface Chunk {
 const ARTICLE_REGEX = /(?:^|\n)\s*(\d{2,3}(?:\.\d{1,3}){1,4})\b/g;
 const CHUNK_SIZE = 1100;
 const CHUNK_OVERLAP = 150;
+const PAGE_IMAGE_SCALE = 2;
 
 function parseArgs() {
   const args = new Map<string, string>();
@@ -54,23 +60,39 @@ function parseArgs() {
   };
 }
 
-async function extractPages(buffer: Buffer): Promise<PageText[]> {
-  const pages: PageText[] = [];
-  let pageNumber = 0;
+async function extractPagesAndRenderImages(
+  buffer: Buffer,
+  imageOutDir: string
+): Promise<PageText[]> {
+  const pdfjsDistRoot = join(process.cwd(), "node_modules", "pdfjs-dist");
+  const doc = await pdfjsLib.getDocument({
+    data: new Uint8Array(buffer),
+    disableFontFace: true,
+    standardFontDataUrl: join(pdfjsDistRoot, "standard_fonts") + "/",
+    cMapUrl: join(pdfjsDistRoot, "cmaps") + "/",
+    cMapPacked: true,
+  }).promise;
 
-  await pdfParse(buffer, {
-    // pdf-parse appelle pagerender pour chaque page ; on capture le texte par page
-    // (par defaut la librairie ne renvoie qu'un texte global concatene).
-    pagerender: async (pageData: {
-      getTextContent: () => Promise<{ items: { str: string }[] }>;
-    }) => {
-      pageNumber += 1;
-      const content = await pageData.getTextContent();
-      const text = content.items.map((item) => item.str).join(" ");
-      pages.push({ pageNumber, text });
-      return text;
-    },
-  });
+  mkdirSync(imageOutDir, { recursive: true });
+
+  const pages: PageText[] = [];
+  for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber++) {
+    const page = await doc.getPage(pageNumber);
+
+    const textContent = await page.getTextContent();
+    const text = textContent.items
+      .map((item: unknown) => (item as { str?: string }).str ?? "")
+      .join(" ");
+    pages.push({ pageNumber, text });
+
+    const viewport = page.getViewport({ scale: PAGE_IMAGE_SCALE });
+    const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
+    const ctx = canvas.getContext("2d");
+    // @napi-rs/canvas n'implemente pas exactement les types DOM Canvas/CanvasRenderingContext2D
+    // que pdfjs-dist attend - sans consequence a l'execution (rendu valide, teste manuellement).
+    await page.render({ canvasContext: ctx, canvas, viewport } as never).promise;
+    writeFileSync(join(imageOutDir, `${pageNumber}.png`), canvas.toBuffer("image/png"));
+  }
 
   return pages;
 }
@@ -150,9 +172,15 @@ async function main() {
       return;
     }
 
-    console.log("Extraction du texte par page...");
-    const pages = await extractPages(buffer);
-    console.log(`${pages.length} pages extraites.`);
+    console.log("Extraction du texte et rendu des pages en image...");
+    // Les images sont rangees par domaine (pas par document) : suffisant pour le cas
+    // d'un document principal par domaine. Avec plusieurs documents dans un meme domaine,
+    // les numeros de page des differents PDF peuvent se recouvrir et s'ecraser - a revoir
+    // si ce cas se presente (ranger par document_id demanderait de creer la ligne
+    // `documents` avant l'extraction).
+    const imageOutDir = join(process.cwd(), "public", "norm-pages", domain);
+    const pages = await extractPagesAndRenderImages(buffer, imageOutDir);
+    console.log(`${pages.length} pages extraites et rendues en image (${imageOutDir}).`);
 
     console.log("Decoupage en chunks...");
     const chunks = pages.flatMap(chunkPage);

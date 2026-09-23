@@ -54,3 +54,10 @@ export function toChatSources(chunks: RetrievedChunk[]): ChatSource[] {
     excerpt: c.content,
   }));
 }
+
+// Correspond au chemin ecrit par scripts/ingest.ts (public/norm-pages/<domaine>/<page>.png),
+// servi tel quel par Next.js depuis public/.
+export function pageImageUrl(domainSlug: string, pageNumber: number | null): string | null {
+  if (!pageNumber) return null;
+  return `/norm-pages/${domainSlug}/${pageNumber}.png`;
+}

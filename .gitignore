@@ -17,3 +17,7 @@ npm-debug.log*
 
 # PDF sources are large and often confidential; keep them out of git by default
 /data/sources/*.pdf
+
+# Images de pages generees par npm run ingest : potentiellement volumineux et issus
+# d'un PDF source souvent proprietaire, a re-generer localement plutot qu'a committer
+/public/norm-pages/
