@@ -20,20 +20,6 @@ export function ChatMessage({ message }: { message: ChatMessageData }) {
       >
         <p className="whitespace-pre-wrap">{message.content}</p>
 
-        {!isUser && message.sources && message.sources.length > 0 && (
-          <div className="mt-3 border-t border-slate-100 pt-2">
-            <p className="text-xs font-medium text-slate-500">Sources</p>
-            <ul className="mt-1 space-y-1">
-              {message.sources.map((s, i) => (
-                <li key={i} className="text-xs text-slate-500">
-                  {s.articleRef ? `Article ${s.articleRef}` : "Extrait"}
-                  {s.pageNumber ? ` - page ${s.pageNumber}` : ""}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
         {!isUser && pageImages.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             {pageImages.map((s) => (

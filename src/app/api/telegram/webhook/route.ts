@@ -18,10 +18,9 @@ const ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID;
 
 const WELCOME_MESSAGE =
   "Bonjour ! Je suis l'assistant expert de la norme NF C15-100. " +
-  "Posez-moi une question (ex: \"quelle section minimale pour un circuit prise 16A ?\") " +
-  "et je vous reponds en citant l'article de la norme concerne.\n\n" +
-  "Cette reponse est une aide a la comprehension de la norme, elle ne remplace pas " +
-  "la validation d'un electricien qualifie ou d'un organisme de controle agree.";
+  "Posez-moi une question (ex: \"quelle section minimale pour un circuit prise 16A ?\").\n\n" +
+  "Important : mes reponses sont une aide a la comprehension de la norme, elles ne remplacent " +
+  "pas la validation d'un electricien qualifie ou d'un organisme de controle agree.";
 
 interface ConversationDomain {
   domainId: string;
@@ -50,21 +49,6 @@ async function getOrCreateConversation(chatId: number): Promise<ConversationDoma
     domain.id,
   ]);
   return { domainId: domain.id, domainSlug: domain.slug };
-}
-
-function formatReply(answer: string, sources: { articleRef: string | null; pageNumber: number | null }[]) {
-  const cited = sources.filter((s) => s.articleRef || s.pageNumber);
-  if (cited.length === 0) return answer;
-
-  const footer = cited
-    .map((s) => {
-      const ref = s.articleRef ? `Article ${s.articleRef}` : "Extrait";
-      const page = s.pageNumber ? ` (page ${s.pageNumber})` : "";
-      return `- ${ref}${page}`;
-    })
-    .join("\n");
-
-  return `${answer}\n\n📖 Sources :\n${footer}`;
 }
 
 export async function POST(req: NextRequest) {
@@ -129,7 +113,7 @@ export async function POST(req: NextRequest) {
       ]
     );
 
-    await sendTelegramMessage(chatId, formatReply(answer, sources));
+    await sendTelegramMessage(chatId, answer);
 
     // Jusqu'a 2 pages uniques envoyees en photo (schemas/tableaux que le texte seul ne rend pas).
     const uniquePages = Array.from(new Set(relevantChunks.map((c) => c.pageNumber).filter(Boolean)));

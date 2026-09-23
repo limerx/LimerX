@@ -35,6 +35,10 @@ export default async function ChatPage({ params }: PageProps) {
           &larr; Domaines
         </a>
         <h1 className="mt-1 text-lg font-semibold text-slate-900">{domain.name}</h1>
+        <p className="mt-1 text-xs text-slate-400">
+          Aide a la comprehension de la norme - ne remplace pas la validation d&apos;un
+          professionnel qualifie.
+        </p>
       </header>
       <ChatWindow domainSlug={domainSlug} />
     </main>

@@ -19,6 +19,10 @@ CREATE TABLE IF NOT EXISTS organizations (
   plan TEXT NOT NULL DEFAULT 'trial', -- trial | starter | pro | enterprise
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- ADD COLUMN IF NOT EXISTS plutot que de casser CREATE TABLE IF NOT EXISTS sur une base
+-- deja migree : ce fichier n'est pas un outil de migration versionne, juste un schema
+-- applique de facon idempotente a chaque `npm run db:migrate`.
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS disclaimer_accepted_at TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

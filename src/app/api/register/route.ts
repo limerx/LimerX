@@ -7,6 +7,7 @@ const registerSchema = z.object({
   organizationName: z.string().min(2).max(200),
   email: z.string().email(),
   password: z.string().min(8).max(200),
+  disclaimerAccepted: z.literal(true),
 });
 
 export async function POST(req: NextRequest) {
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
     }
 
     const orgResult = await client.query<{ id: string }>(
-      "INSERT INTO organizations (name) VALUES ($1) RETURNING id",
+      "INSERT INTO organizations (name, disclaimer_accepted_at) VALUES ($1, now()) RETURNING id",
       [organizationName]
     );
     const organizationId = orgResult.rows[0].id;

@@ -71,10 +71,14 @@ npm run ingest -- --file=./data/sources/nf-c15-100.pdf --domain=nf-c15-100 \
 Le script :
 1. Extrait le texte page par page, et rend chaque page en image PNG dans
    `public/norm-pages/<domaine>/<page>.png` (schemas/tableaux non restituables en texte seul —
-   voir la question posee au chat/a Telegram, qui renvoie une vignette vers la page d'origine)
-2. Tente de detecter les references d'article (motif `411.3.3`, `701.1.2`, ...) pour permettre au
-   chatbot de citer precisement ses sources — **a ajuster** (`ARTICLE_REGEX` dans
-   `scripts/ingest.ts`) si la structure reelle du PDF differe une fois teste
+   voir la question posee au chat/a Telegram, qui renvoie une vignette vers la page d'origine).
+   Le bas de chaque page est rogne (pied de page, bandeau publicitaire eventuel du document
+   source) via `--crop-bottom=0.08` (8% par defaut) — ajuster cette valeur et re-ingerer si ca
+   coupe du contenu utile ou ne retire pas assez
+2. Tente de detecter les references d'article (motif `411.3.3`, `701.1.2`, ...) pour le decoupage
+   en chunks — **a ajuster** (`ARTICLE_REGEX` dans `scripts/ingest.ts`) si la structure reelle du
+   PDF differe une fois teste. Ces references servent uniquement au decoupage interne : le
+   chatbot ne les cite plus dans ses reponses (voir plus bas)
 3. Decoupe en chunks (~1100 caracteres, chevauchement de 150) et calcule les embeddings Gemini
 4. Insere le tout en base, idempotent par checksum du fichier (un meme PDF ne sera pas re-ingere)
 
@@ -113,10 +117,22 @@ avant deploiement, Telegram n'acceptant que des URL HTTPS publiques.
 
 ## Points d'attention pour la mise en production / vente SaaS
 
+- **Droits sur le document source** : le decoupage/l'indexation ne dispensent pas de verifier que
+  vous avez le droit d'exploiter commercialement le contenu du PDF source. Un guide edite par un
+  fabricant (ex: guide "inspire de" la norme publie par un equipementier, avec sa mise en page et
+  ses illustrations) reste sous son propre copyright, distinct de la norme AFNOR/UTE elle-meme
+  qui est egalement payante. Faire disparaitre une marque des images (voir `--crop-bottom`)
+  n'efface pas ce risque juridique — a clarifier avant toute vente.
 - **Fiabilite des reponses** : le prompt systeme (`src/lib/gemini.ts`) force le modele a ne
-  repondre qu'a partir des extraits retrouves et a toujours citer l'article source, avec un
-  rappel qu'il ne remplace pas un professionnel qualifie / un organisme de controle agree
-  (Consuel). Ne pas retirer ce garde-fou : c'est ce qui protege juridiquement le produit.
+  repondre qu'a partir des extraits retrouves et a ne jamais inventer d'information. Le rappel
+  juridique ("ne remplace pas un professionnel qualifie...") n'est plus repete a chaque reponse
+  (voir plus bas) mais affiche une fois a la creation du compte (case a cocher obligatoire,
+  horodatee dans `organizations.disclaimer_accepted_at`) et en permanence dans l'en-tete du chat.
+  Ne pas retirer ce garde-fou : c'est ce qui protege juridiquement le produit.
+- **Citations masquees a l'utilisateur final** : le modele ne mentionne plus de numero
+  d'article/page dans le texte de la reponse, et l'UI n'affiche plus la liste "Sources" — seules
+  les vignettes de page (schemas/tableaux) restent visibles. Les references d'article sont
+  toujours stockees en base (`chunks.article_ref`, `messages.sources`) pour l'audit interne.
 - **Qualite du decoupage (chunking)** : la detection d'articles par regex est un point de depart.
   Une fois le vrai PDF teste, verifier manuellement un echantillon de chunks/articles retrouves
   et affiner `ARTICLE_REGEX` / la logique de segmentation en consequence.

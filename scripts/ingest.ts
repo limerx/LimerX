@@ -48,21 +48,28 @@ function parseArgs() {
   const domain = args.get("domain");
   if (!file || !domain) {
     console.error(
-      "Usage: npm run ingest -- --file=<chemin.pdf> --domain=<slug> [--title=\"...\"] [--version=\"...\"]"
+      "Usage: npm run ingest -- --file=<chemin.pdf> --domain=<slug> [--title=\"...\"] [--version=\"...\"] [--crop-bottom=0.08]"
     );
     process.exit(1);
+  }
+  const cropBottomArg = args.get("crop-bottom");
+  const cropBottom = cropBottomArg !== undefined ? Number(cropBottomArg) : 0.08;
+  if (Number.isNaN(cropBottom) || cropBottom < 0 || cropBottom >= 1) {
+    throw new Error("--crop-bottom doit etre un nombre entre 0 et 1 (ex: 0.08 pour 8%).");
   }
   return {
     file,
     domain,
     title: args.get("title") ?? null,
     version: args.get("version") ?? null,
+    cropBottom,
   };
 }
 
 async function extractPagesAndRenderImages(
   buffer: Buffer,
-  imageOutDir: string
+  imageOutDir: string,
+  cropBottomRatio: number
 ): Promise<PageText[]> {
   const pdfjsDistRoot = join(process.cwd(), "node_modules", "pdfjs-dist");
   const doc = await pdfjsLib.getDocument({
@@ -86,12 +93,21 @@ async function extractPagesAndRenderImages(
     pages.push({ pageNumber, text });
 
     const viewport = page.getViewport({ scale: PAGE_IMAGE_SCALE });
-    const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
+    const fullWidth = Math.ceil(viewport.width);
+    const fullHeight = Math.ceil(viewport.height);
+    const canvas = createCanvas(fullWidth, fullHeight);
     const ctx = canvas.getContext("2d");
     // @napi-rs/canvas n'implemente pas exactement les types DOM Canvas/CanvasRenderingContext2D
     // que pdfjs-dist attend - sans consequence a l'execution (rendu valide, teste manuellement).
     await page.render({ canvasContext: ctx, canvas, viewport } as never).promise;
-    writeFileSync(join(imageOutDir, `${pageNumber}.png`), canvas.toBuffer("image/png"));
+
+    // Rogne le bas de la page (pied de page / bandeau publicitaire eventuel du document
+    // source). Pourcentage uniforme applique a toutes les pages - ajuster CROP_BOTTOM_RATIO
+    // (ou --crop-bottom=0.xx) et re-ingerer si ca coupe du contenu ou n'enleve pas assez.
+    const croppedHeight = Math.max(1, Math.round(fullHeight * (1 - cropBottomRatio)));
+    const finalCanvas = createCanvas(fullWidth, croppedHeight);
+    finalCanvas.getContext("2d").drawImage(canvas, 0, 0);
+    writeFileSync(join(imageOutDir, `${pageNumber}.png`), finalCanvas.toBuffer("image/png"));
   }
 
   return pages;
@@ -140,7 +156,7 @@ function chunkPage(page: PageText): Chunk[] {
 }
 
 async function main() {
-  const { file, domain, title, version } = parseArgs();
+  const { file, domain, title, version, cropBottom } = parseArgs();
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) throw new Error("DATABASE_URL manquant dans l'environnement.");
 
@@ -179,8 +195,10 @@ async function main() {
     // si ce cas se presente (ranger par document_id demanderait de creer la ligne
     // `documents` avant l'extraction).
     const imageOutDir = join(process.cwd(), "public", "norm-pages", domain);
-    const pages = await extractPagesAndRenderImages(buffer, imageOutDir);
-    console.log(`${pages.length} pages extraites et rendues en image (${imageOutDir}).`);
+    const pages = await extractPagesAndRenderImages(buffer, imageOutDir, cropBottom);
+    console.log(
+      `${pages.length} pages extraites et rendues en image (${imageOutDir}, ${Math.round(cropBottom * 100)}% rogne en bas).`
+    );
 
     console.log("Decoupage en chunks...");
     const chunks = pages.flatMap(chunkPage);
