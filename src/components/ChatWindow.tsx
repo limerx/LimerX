@@ -107,7 +107,11 @@ export function ChatWindow({ domainSlug }: { domainSlug: string }) {
         ))}
       </div>
 
-      <form onSubmit={handleSubmit} className="border-t border-slate-200 bg-white px-6 py-4">
+      <form
+        onSubmit={handleSubmit}
+        className="border-t border-slate-200 bg-white px-6 py-4"
+        style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+      >
         <div className="flex gap-2">
           <input
             type="text"
