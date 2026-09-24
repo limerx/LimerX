@@ -21,3 +21,9 @@ npm-debug.log*
 # Anciennement exclues, elles sont maintenant committees pour que le build de production
 # (Vercel) puisse les servir depuis public/ - voir la note legale dans le README sur les
 # droits du document source avant de partager publiquement.
+
+# Artefacts des tests Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

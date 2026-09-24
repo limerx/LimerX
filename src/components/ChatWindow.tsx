@@ -94,8 +94,14 @@ export function ChatWindow({ domainSlug }: { domainSlug: string }) {
   }
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="flex-1 space-y-4 overflow-y-auto px-6 py-6">
+    // Le formulaire est en position fixed (ancre au viewport de l'ecran, pas au flux de la
+    // page) : sur mobile, une hauteur basee sur flex+dvh seule s'est averee peu fiable des
+    // que le clavier virtuel s'ouvre (l'input finissait hors champ / dans le scroll).
+    <div className="relative flex flex-1 flex-col overflow-hidden">
+      <div
+        className="flex-1 space-y-4 overflow-y-auto px-6 py-6"
+        style={{ paddingBottom: "calc(5.5rem + env(safe-area-inset-bottom))" }}
+      >
         {messages.length === 0 && (
           <p className="text-sm text-slate-500">
             Posez une question sur la norme, par exemple : "Quelle section minimale pour un
@@ -109,10 +115,10 @@ export function ChatWindow({ domainSlug }: { domainSlug: string }) {
 
       <form
         onSubmit={handleSubmit}
-        className="border-t border-slate-200 bg-white px-6 py-4"
+        className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white px-6 py-4"
         style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
       >
-        <div className="flex gap-2">
+        <div className="mx-auto flex max-w-3xl gap-2">
           <input
             type="text"
             value={input}

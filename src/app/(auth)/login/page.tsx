@@ -33,8 +33,11 @@ export default function LoginPage() {
         <h1 className="text-xl font-semibold text-slate-900">Connexion</h1>
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700">Email</label>
+            <label htmlFor="email" className="block text-sm font-medium text-slate-700">
+              Email
+            </label>
             <input
+              id="email"
               type="email"
               required
               value={email}
@@ -43,8 +46,11 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700">Mot de passe</label>
+            <label htmlFor="password" className="block text-sm font-medium text-slate-700">
+              Mot de passe
+            </label>
             <input
+              id="password"
               type="password"
               required
               value={password}

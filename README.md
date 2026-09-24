@@ -150,6 +150,24 @@ Le webhook (`src/app/api/telegram/webhook/route.ts`) verifie que chaque requete 
 header `X-Telegram-Bot-Api-Secret-Token` avant de traiter le message — indispensable car l'URL du
 webhook est publique.
 
+## Tests end-to-end (Playwright)
+
+```bash
+npx playwright install chromium   # une seule fois
+npm run dev                       # dans un terminal, app + base migree
+npm run test:e2e                  # dans un autre terminal
+```
+
+- `tests/e2e/landing.spec.ts` : page d'accueil (titre, CTA, rappel legal) — aucune base requise
+- `tests/e2e/auth.spec.ts` : inscription, validation du rappel legal obligatoire, connexion
+- `tests/e2e/chat-mobile.spec.ts` : verifie que la barre de saisie du chat reste dans le viewport
+  visible (regression sur mobile ou elle se retrouvait hors champ) — necessite qu'au moins un
+  domaine soit accessible au compte fraichement cree (`is_public = true` sur un domaine, par
+  exemple)
+
+Deux projets s'executent (`desktop-chromium` et `mobile-chromium`, ce dernier emule un ecran de
+telephone) pour attraper les regressions specifiques au mobile.
+
 ## Points d'attention pour la mise en production / vente SaaS
 
 - **Droits sur le document source** : le decoupage/l'indexation ne dispensent pas de verifier que
