@@ -141,3 +141,24 @@ CREATE TABLE IF NOT EXISTS telegram_messages (
 );
 
 CREATE INDEX IF NOT EXISTS telegram_messages_chat_idx ON telegram_messages (chat_id);
+
+-- Regles de dimensionnement (section de cable / calibre de disjoncteur) extraites d'un
+-- tableau normatif et saisies une fois pour toutes : consultation deterministe, sans IA,
+-- pour les valeurs ou une approximation n'est pas acceptable (securite electrique).
+CREATE TABLE IF NOT EXISTS circuit_sizing_rules (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  domain_id UUID NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+  category TEXT NOT NULL,       -- ex: 'Eclairage', 'Prise de courant 16A', 'Chauffage 230W'
+  subcategory TEXT,             -- ex: 'Circuit avec 8 prises max'
+  power_min_w INTEGER,
+  power_max_w INTEGER,
+  phase TEXT,                   -- 'mono' | 'tri' | null si non applicable
+  min_section_mm2 NUMERIC(4,1) NOT NULL,
+  max_breaker_amps NUMERIC(4,1) NOT NULL,
+  notes TEXT,
+  source_ref TEXT,              -- ex: 'Tableau 10-1F'
+  source_page INTEGER,
+  display_order INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS circuit_sizing_rules_domain_idx ON circuit_sizing_rules (domain_id);

@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { redirect, notFound } from "next/navigation";
+import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { ChatWindow } from "@/components/ChatWindow";
@@ -30,15 +31,23 @@ export default async function ChatPage({ params }: PageProps) {
 
   return (
     <main className="flex h-dvh flex-col bg-slate-50">
-      <header className="border-b border-slate-200 bg-white px-6 py-4">
-        <a href="/dashboard" className="text-sm text-slate-500 hover:text-slate-800">
-          &larr; Domaines
-        </a>
-        <h1 className="mt-1 text-lg font-semibold text-slate-900">{domain.name}</h1>
-        <p className="mt-1 text-xs text-slate-400">
-          Aide a la comprehension de la norme - ne remplace pas la validation d&apos;un
-          professionnel qualifie.
-        </p>
+      <header className="flex items-start justify-between border-b border-slate-200 bg-white px-6 py-4">
+        <div>
+          <a href="/dashboard" className="text-sm text-slate-500 hover:text-slate-800">
+            &larr; Domaines
+          </a>
+          <h1 className="mt-1 text-lg font-semibold text-slate-900">{domain.name}</h1>
+          <p className="mt-1 text-xs text-slate-400">
+            Aide a la comprehension de la norme - ne remplace pas la validation d&apos;un
+            professionnel qualifie.
+          </p>
+        </div>
+        <Link
+          href={`/dashboard/chat/${domainSlug}/calculateur`}
+          className="shrink-0 rounded-md border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700 hover:bg-brand-100"
+        >
+          Calculateur
+        </Link>
       </header>
       <ChatWindow domainSlug={domainSlug} />
     </main>
