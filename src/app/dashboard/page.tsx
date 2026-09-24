@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { getPublicPriceInfo } from "@/lib/stripe";
 import { BillingStatus } from "@/components/BillingStatus";
 import { TelegramLinkCard } from "@/components/TelegramLinkCard";
 
@@ -32,21 +33,21 @@ export default async function DashboardPage() {
     [session.user.organizationId]
   );
   const subscriptionStatus = orgRows[0]?.subscription_status ?? null;
+  const priceInfo = subscriptionStatus === null ? await getPublicPriceInfo() : null;
 
   return (
     <main className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <span className="text-lg font-semibold text-brand-700">LimerX</span>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-slate-600">{session.user.email}</span>
-            <BillingStatus status={subscriptionStatus} />
-          </div>
+          <span className="text-sm text-slate-600">{session.user.email}</span>
         </div>
       </header>
 
       <div className="mx-auto max-w-5xl px-6 py-10">
-        <h1 className="text-2xl font-semibold text-slate-900">Vos domaines de connaissance</h1>
+        <BillingStatus status={subscriptionStatus} priceInfo={priceInfo} />
+
+        <h1 className="mt-10 text-2xl font-semibold text-slate-900">Vos domaines de connaissance</h1>
         <p className="mt-1 text-slate-600">
           Choisissez un domaine pour poser vos questions.
         </p>

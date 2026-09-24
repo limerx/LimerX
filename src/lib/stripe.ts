@@ -65,3 +65,29 @@ export function constructWebhookEvent(rawBody: string, signature: string): Strip
 
 // Statuts Stripe consideres comme donnant droit a l'usage du produit.
 export const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["trialing", "active"]);
+
+export interface PriceInfo {
+  amount: number; // en unite principale (ex: 49 pour 49,00 EUR), pas en centimes
+  currency: string; // ex: 'eur'
+  interval: string; // ex: 'month', 'year'
+}
+
+// Prix affiche sur le dashboard, lu directement depuis Stripe : evite de dupliquer/desynchroniser
+// le tarif entre le dashboard Stripe et le code si le prix change.
+export async function getPublicPriceInfo(): Promise<PriceInfo | null> {
+  const priceId = process.env.STRIPE_PRICE_ID;
+  if (!priceId) return null;
+
+  try {
+    const price = await getStripe().prices.retrieve(priceId);
+    if (price.unit_amount == null || !price.recurring) return null;
+    return {
+      amount: price.unit_amount / 100,
+      currency: price.currency,
+      interval: price.recurring.interval,
+    };
+  } catch (err) {
+    console.error("getPublicPriceInfo error:", err);
+    return null;
+  }
+}
