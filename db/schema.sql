@@ -162,3 +162,41 @@ CREATE TABLE IF NOT EXISTS circuit_sizing_rules (
 );
 
 CREATE INDEX IF NOT EXISTS circuit_sizing_rules_domain_idx ON circuit_sizing_rules (domain_id);
+
+-- Volumes de protection de la salle de bain (0, 1, 2, cache) et materiels admis par volume,
+-- extraits du Tableau 10-1C. Consultation deterministe (pas de generation IA) pour une
+-- donnee de securite electrique.
+CREATE TABLE IF NOT EXISTS bathroom_protection_zones (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  domain_id UUID NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+  zone_name TEXT NOT NULL,          -- ex: 'Volume 0', 'Volume 1', 'Volume 2', 'Volume cache'
+  ip_degree TEXT NOT NULL,          -- ex: 'IPX7'
+  canalisation_rule TEXT NOT NULL,
+  appareillage_rule TEXT NOT NULL,
+  usage_material_rule TEXT NOT NULL,
+  notes TEXT,
+  source_ref TEXT,
+  source_page INTEGER,
+  display_order INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS bathroom_protection_zones_domain_idx ON bathroom_protection_zones (domain_id);
+
+-- Equipement minimal (eclairage, prises, multimedia, circuits specialises) par piece du
+-- logement, extrait du tableau "L'equipement minimal dans le logement".
+CREATE TABLE IF NOT EXISTS room_equipment_minimums (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  domain_id UUID NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+  room_type TEXT NOT NULL,          -- ex: 'Cuisine', 'Salle de bain', 'Sejour'
+  lighting_points TEXT NOT NULL,
+  power_outlets TEXT NOT NULL,
+  multimedia_outlets TEXT,
+  specialized_circuits TEXT,
+  other_circuits TEXT,
+  notes TEXT,
+  source_ref TEXT,
+  source_page INTEGER,
+  display_order INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS room_equipment_minimums_domain_idx ON room_equipment_minimums (domain_id);

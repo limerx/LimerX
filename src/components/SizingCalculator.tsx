@@ -40,8 +40,11 @@ export function SizingCalculator({ rules, domainSlug }: { rules: SizingRule[]; d
   return (
     <div className="mx-auto max-w-2xl">
       <div>
-        <label className="block text-sm font-medium text-slate-700">Type de circuit</label>
+        <label htmlFor="circuit-category-select" className="block text-sm font-medium text-slate-700">
+          Type de circuit
+        </label>
         <select
+          id="circuit-category-select"
           value={category}
           onChange={(e) => {
             setCategory(e.target.value);
