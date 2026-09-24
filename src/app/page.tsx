@@ -33,7 +33,10 @@ export default async function LandingPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <span className="text-lg font-semibold text-brand-700">LimerX</span>
           <nav className="flex items-center gap-4 text-sm">
-            <Link href="/login" className="text-slate-600 hover:text-slate-900">
+            <Link
+              href="/login"
+              className="rounded-md bg-brand-600 px-4 py-2 font-medium text-white hover:bg-brand-700"
+            >
               Connexion
             </Link>
           </nav>
