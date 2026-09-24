@@ -36,12 +36,6 @@ export default async function LandingPage() {
             <Link href="/login" className="text-slate-600 hover:text-slate-900">
               Connexion
             </Link>
-            <Link
-              href="/register"
-              className="rounded-md bg-brand-600 px-4 py-2 font-medium text-white hover:bg-brand-700"
-            >
-              Essayer gratuitement
-            </Link>
           </nav>
         </div>
       </header>
