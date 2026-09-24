@@ -55,20 +55,6 @@ export default async function LandingPage() {
           Posez vos questions en langage naturel, obtenez des reponses precises et sourcees
           directement issues du texte de la norme electrique basse tension.
         </p>
-        <div className="mt-10 flex justify-center gap-4">
-          <Link
-            href="/register"
-            className="rounded-md bg-brand-600 px-6 py-3 font-medium text-white hover:bg-brand-700"
-          >
-            Commencer maintenant
-          </Link>
-          <Link
-            href="/login"
-            className="rounded-md border border-slate-300 px-6 py-3 font-medium text-slate-700 hover:bg-slate-100"
-          >
-            J'ai deja un compte
-          </Link>
-        </div>
       </section>
 
       <section className="mx-auto max-w-6xl px-6 pb-24">
