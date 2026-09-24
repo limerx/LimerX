@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { formatPrice } from "@/lib/format";
+import type { PriceInfo } from "@/lib/stripe";
 
 const STATUS_LABELS: Record<string, string> = {
   trialing: "Essai gratuit en cours",
@@ -9,26 +11,6 @@ const STATUS_LABELS: Record<string, string> = {
   canceled: "Abonnement annule",
   unpaid: "Impaye",
 };
-
-const FEATURES = [
-  "Acces illimite a tous les domaines de connaissance",
-  "Disponible sur le site web et sur Telegram (WhatsApp bientot)",
-  "Reponses toujours a jour avec la derniere version des documents",
-];
-
-function formatPrice(amount: number, currency: string): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: currency.toUpperCase(),
-    minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
-  }).format(amount);
-}
-
-export interface PriceInfo {
-  amount: number;
-  currency: string;
-  interval: string;
-}
 
 function useBillingAction() {
   const [loading, setLoading] = useState(false);
@@ -64,44 +46,29 @@ export function BillingStatus({
 
   if (status === null) {
     return (
-      <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600 to-brand-900 text-white shadow-lg">
-        <div className="grid gap-8 p-8 sm:grid-cols-[1fr_auto] sm:items-center">
-          <div>
-            <span className="inline-block rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide">
-              Essai gratuit 7 jours
-            </span>
-            <h2 className="mt-3 text-2xl font-bold">Debloquez l&apos;acces complet</h2>
-            <ul className="mt-4 space-y-2 text-sm text-white/90">
-              {FEATURES.map((f) => (
-                <li key={f} className="flex items-start gap-2">
-                  <span className="mt-0.5">✓</span>
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="text-center sm:text-right">
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="font-semibold text-slate-900">Aucun abonnement actif</p>
+          <p className="text-sm text-slate-600">
+            Demarrez votre essai gratuit de 7 jours
             {priceInfo && (
-              <p className="text-4xl font-extrabold">
-                {formatPrice(priceInfo.amount, priceInfo.currency)}
-                <span className="text-base font-medium text-white/80">
-                  {" "}
-                  / {priceInfo.interval === "month" ? "mois" : "an"}
-                </span>
-              </p>
+              <>
+                {" "}
+                ({formatPrice(priceInfo.amount, priceInfo.currency)} /{" "}
+                {priceInfo.interval === "month" ? "mois" : "an"} ensuite)
+              </>
             )}
-            <button
-              onClick={() => goTo("checkout")}
-              disabled={loading}
-              className="mt-4 w-full rounded-lg bg-white px-6 py-3 text-sm font-semibold text-brand-700 shadow transition hover:bg-slate-100 disabled:opacity-50 sm:w-auto"
-            >
-              {loading ? "..." : "Demarrer mon essai gratuit"}
-            </button>
-            <p className="mt-2 text-xs text-white/70">Sans engagement, annulable a tout moment</p>
-          </div>
+            .
+          </p>
         </div>
-        {error && <p className="bg-red-500/20 px-8 py-2 text-sm">{error}</p>}
+        <button
+          onClick={() => goTo("checkout")}
+          disabled={loading}
+          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
+        >
+          {loading ? "..." : "Demarrer mon essai gratuit"}
+        </button>
+        {error && <p className="text-sm text-red-600">{error}</p>}
       </div>
     );
   }

@@ -1,4 +1,10 @@
 import Link from "next/link";
+import { getPublicPriceInfo } from "@/lib/stripe";
+import { PricingSection } from "@/components/PricingSection";
+
+// Rafraichit le prix affiche au maximum une fois par heure : evite un appel Stripe a
+// chaque visite tout en gardant la page en phase avec le tarif Stripe sans redeploiement.
+export const revalidate = 3600;
 
 const FEATURES = [
   {
@@ -18,7 +24,9 @@ const FEATURES = [
   },
 ];
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const priceInfo = await getPublicPriceInfo();
+
   return (
     <main className="min-h-screen">
       <header className="border-b border-slate-200 bg-white">
@@ -73,6 +81,8 @@ export default function LandingPage() {
           ))}
         </div>
       </section>
+
+      <PricingSection priceInfo={priceInfo} />
 
       <footer className="border-t border-slate-200 py-8 text-center text-sm text-slate-500">
         LimerX ne remplace pas l'avis d'un electricien qualifie ou d'un organisme de controle agree.
