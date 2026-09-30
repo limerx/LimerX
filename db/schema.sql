@@ -200,3 +200,23 @@ CREATE TABLE IF NOT EXISTS room_equipment_minimums (
 );
 
 CREATE INDEX IF NOT EXISTS room_equipment_minimums_domain_idx ON room_equipment_minimums (domain_id);
+
+-- Row Level Security : ce backend n'accede jamais a Postgres via l'API PostgREST/anon de
+-- Supabase, uniquement via une connexion directe (role postgres, qui contourne RLS). On
+-- active RLS sans aucune policy sur toutes les tables du schema public pour fermer l'acces
+-- PostgREST/anon expose par defaut par Supabase (remonte comme "RLS Disabled in Public",
+-- niveau critique, par l'audit de securite Supabase).
+ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE domains ENABLE ROW LEVEL SECURITY;
+ALTER TABLE org_domain_access ENABLE ROW LEVEL SECURITY;
+ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chunks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE telegram_conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE telegram_link_codes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE telegram_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE circuit_sizing_rules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bathroom_protection_zones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE room_equipment_minimums ENABLE ROW LEVEL SECURITY;
