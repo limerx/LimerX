@@ -11,6 +11,18 @@ VALUES (
 )
 ON CONFLICT (slug) DO NOTHING;
 
+-- Domaine public (pas d'abonnement requis) : documentation technique d'entretien d'un
+-- vehicule. Le document lui-meme est ingere separement via `npm run ingest` (pas de PDF
+-- fourni avec le depot).
+INSERT INTO domains (slug, name, description, is_public)
+VALUES (
+  'renault-trafic-2',
+  'Renault Trafic 2 - Guide d''entretien',
+  'Documentation technique d''entretien du Renault Trafic 2.',
+  true
+)
+ON CONFLICT (slug) DO NOTHING;
+
 -- Regles de dimensionnement (section de cable / calibre disjoncteur) du Tableau 10-1F
 -- (NF C15-100-10.1.6.5 et NF C15-100-10.1.7.7.2, page 16 du document ingere).
 -- Saisie une fois pour toutes ; pas de ON CONFLICT ligne par ligne (pas de cle naturelle
